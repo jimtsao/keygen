@@ -40,7 +40,7 @@ func (k *keygen) Key() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if idx < int64(len(k.charset)) {
+		if idx < int64(len(charset)) {
 			key.WriteRune(charset[idx])
 			i++
 		}
