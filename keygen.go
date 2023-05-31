@@ -44,9 +44,9 @@ func New(c *Config) (*keygen, error) {
 	// custom values
 	// -- check charset is not empty and no duplicate characters
 	if c.Charset == "" {
-		return nil, fmt.Errorf("empty charset")
+		return nil, errors.New("empty charset")
 	} else if utf8.RuneCountInString(c.Charset) == 1 {
-		return nil, fmt.Errorf("charset must contain more than 1 character")
+		return nil, errors.New("charset must contain more than 1 character")
 	}
 	dups := map[rune]bool{}
 	for _, r := range c.Charset {
@@ -62,7 +62,7 @@ func New(c *Config) (*keygen, error) {
 	if c.KeyLength != 0 {
 		// -- check key length
 		if c.KeyLength < 0 {
-			return nil, errors.New("key")
+			return nil, errors.New("key length must be >= 0")
 		}
 		k.keyLength = c.KeyLength
 	} else {
