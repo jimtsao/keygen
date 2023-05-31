@@ -1,3 +1,3 @@
 module github.com/jimtsao/keygen
 
-go 1.1
+go 1.13
