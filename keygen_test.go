@@ -35,6 +35,8 @@ func TestNewBadConfig(t *testing.T) {
 	}{
 		{"empty charset", "", 128, 0},
 		{"charset must contain more than 1 character", "a", 128, 0},
+		{"non printable unicode: 'U+0020'", "a b", 128, 0},
+		{"non printable unicode: 'U+2002'", "a\u2002b", 128, 0},
 		{"duplicate character: 'b'", "abbc", 128, 0},
 		{"minimum entropy must be > 0", keygen.CharsetBase62, 0, 0},
 		{"minimum entropy must be > 0", keygen.CharsetBase62, -1, 0},

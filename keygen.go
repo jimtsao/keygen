@@ -3,6 +3,7 @@ package keygen
 import (
 	"errors"
 	"fmt"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -42,14 +43,19 @@ func New(c *Config) (*keygen, error) {
 	}
 
 	// custom values
-	// -- check charset is not empty and no duplicate characters
+	// -- check charset is not empty or has single character
 	if c.Charset == "" {
 		return nil, errors.New("empty charset")
 	} else if utf8.RuneCountInString(c.Charset) == 1 {
 		return nil, errors.New("charset must contain more than 1 character")
 	}
 	dups := map[rune]bool{}
+	// -- check for non printable unicode and duplicates
 	for _, r := range c.Charset {
+		if !unicode.IsPrint(r) || r == ' ' {
+			return nil, fmt.Errorf("non printable unicode: '%U'", r)
+		}
+
 		if dups[r] {
 			return nil, fmt.Errorf("duplicate character: %q", r)
 		} else {
