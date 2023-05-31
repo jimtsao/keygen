@@ -3,59 +3,74 @@ package keygen
 import (
 	"errors"
 	"fmt"
+	"unicode/utf8"
 )
 
-const defaultCharset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+// CharsetBase58 alphanumeric minus ambiguous characters 0, I, O and L
+const CharsetBase58 = "123456789ABCDEFGHJKMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+// CharsetBase62 alphanumeric characters, good for human readable keys
+const CharsetBase62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+// CharsetRFC6265 conforms to RFC6265, good for cookie values
+const CharsetRFC6265 = CharsetBase62 + "!#$%&'()*+-./:<=>?@[]^_`{|}~"
 
 type keygen struct {
 	charset    string
 	minEntropy int
-	checksum   bool
+	keyLength  int
 }
 
 type Config struct {
 	// Charset specifies allowed characters. Must be subset of [0-9][a-z][A-Z]
-	Charset    string
+	Charset string
+	// MinEntropy specifies minimum entropy in bits required for key
 	MinEntropy int
-	Checksum   bool
+	// KeyLength specifies number of characters in generated key, if this
+	// value is > 0, minimum entropy value is ignored
+	KeyLength int
 }
 
 // New returns a key generator with given config, or default values if nil
-func New(cfg *Config) (*keygen, error) {
+func New(c *Config) (*keygen, error) {
 	// default values
-	if cfg == nil {
-		k := &keygen{charset: defaultCharset, minEntropy: 128, checksum: true}
+	k := &keygen{}
+	if c == nil {
+		k.charset = CharsetBase62
+		k.minEntropy = 128
 		return k, nil
 	}
 
 	// custom values
-	// -- check charset
-	if cfg.Charset == "" {
+	// -- check charset is not empty and no duplicate characters
+	if c.Charset == "" {
 		return nil, fmt.Errorf("empty charset")
+	} else if utf8.RuneCountInString(c.Charset) == 1 {
+		return nil, fmt.Errorf("charset must contain more than 1 character")
 	}
 	dups := map[rune]bool{}
-	for _, r := range cfg.Charset {
-		// check rune within allowed character set
-		if !('0' <= r && r <= '9') && !('a' <= r && r <= 'z') && !('A' <= r && r <= 'Z') {
-			return nil, fmt.Errorf("invalid character: %q", r)
-		}
-
-		// check for duplicate characters
+	for _, r := range c.Charset {
 		if dups[r] {
 			return nil, fmt.Errorf("duplicate character: %q", r)
 		} else {
 			dups[r] = true
 		}
 	}
-	// -- check minimum entropy
-	if cfg.MinEntropy < 1 {
-		return nil, errors.New("minimum entropy must be > 0")
-	}
+	k.charset = c.Charset
 
-	k := &keygen{
-		charset:    cfg.Charset,
-		minEntropy: cfg.MinEntropy,
-		checksum:   cfg.Checksum,
+	// user specified either key length or minimum entropy
+	if c.KeyLength != 0 {
+		// -- check key length
+		if c.KeyLength < 0 {
+			return nil, errors.New("key")
+		}
+		k.keyLength = c.KeyLength
+	} else {
+		// -- check minimum entropy
+		if c.MinEntropy < 1 {
+			return nil, errors.New("minimum entropy must be > 0")
+		}
+		k.minEntropy = c.MinEntropy
 	}
 
 	return k, nil
