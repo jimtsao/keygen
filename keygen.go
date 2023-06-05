@@ -33,6 +33,8 @@ type Config struct {
 }
 
 // New returns a key generator with given config, or default values if nil
+//
+// If no config is specified, error is always nil
 func New(c *Config) (*keygen, error) {
 	// default values
 	k := &keygen{}

@@ -8,6 +8,7 @@ import (
 
 func TestNewDefault(t *testing.T) {
 	k, err := keygen.New(nil)
+	// nil config should always return nil error
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
