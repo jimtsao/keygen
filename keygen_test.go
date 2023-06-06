@@ -62,13 +62,13 @@ func TestNewGoodConfig(t *testing.T) {
 		Charset    string
 		MinEntropy int
 		KeyLength  int
-		TestFn     func(string)
+		TestFn     func([]byte)
 	}{
 		// test charset unicode support
-		{"日本", 128, 0, func(key string) {
-			for _, char := range key {
-				if char != '日' && char != '本' {
-					t.Logf("expected charset '日本', got character: '%#q'", char)
+		{"日本", 128, 0, func(key []byte) {
+			for _, r := range string(key) {
+				if r != '日' && r != '本' {
+					t.Logf("expected charset '日本', got character: '%#q'", r)
 					t.Fail()
 					break
 				}
@@ -76,7 +76,7 @@ func TestNewGoodConfig(t *testing.T) {
 		}},
 
 		// test min entropy
-		{"12345678", 128, 0, func(key string) {
+		{"12345678", 128, 0, func(key []byte) {
 			// charset has 3 bit entropy, 128 / 3 = 42.66
 			if len(key) != 43 {
 				t.Logf("expected minimum entropy: %d, got: %d", 128, 3*len(key))
@@ -85,7 +85,7 @@ func TestNewGoodConfig(t *testing.T) {
 		}},
 
 		// test key length overrides minimum entropy
-		{keygen.CharsetBase62, 128, 3, func(key string) {
+		{keygen.CharsetBase62, 128, 3, func(key []byte) {
 			if len(key) != 3 {
 				t.Logf("expected key length: %d, got: %d", 22, len(key))
 				t.Fail()

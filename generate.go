@@ -1,12 +1,12 @@
 package keygen
 
 import (
+	"bytes"
 	"math"
-	"strings"
 	"unicode/utf8"
 )
 
-func (k *keygen) Key() (string, error) {
+func (k *keygen) Key() ([]byte, error) {
 	// we calculate key length by dividing the minimum entropy needed
 	// by the entropy of the charset specified, then rounding up
 	charset := []rune(k.charset)
@@ -32,13 +32,13 @@ func (k *keygen) Key() (string, error) {
 	}
 
 	// generate key
-	var key strings.Builder
+	var key bytes.Buffer
 	key.Grow(keyRuneCount * maxRuneWidth)
 	r := randgen{}
 	for i := 0; i < keyRuneCount; {
 		idx, err := r.randomBits(charsetEntropy)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if idx < int64(len(charset)) {
 			key.WriteRune(charset[idx])
@@ -46,5 +46,5 @@ func (k *keygen) Key() (string, error) {
 		}
 	}
 
-	return key.String(), nil
+	return key.Bytes(), nil
 }
