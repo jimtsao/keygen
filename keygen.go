@@ -1,8 +1,10 @@
 package keygen
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"unicode"
 	"unicode/utf8"
 )
@@ -23,63 +25,93 @@ type keygen struct {
 }
 
 type Config struct {
-	// Charset specifies allowed printable characters. Unicode categories L, M, N, P, S
+	// Charset specifies allowed printable characters (unicode categories L, M, N, P, S)
+	//
+	// Duplicate characters will occur in greater frequency
 	Charset string
 	// MinEntropy specifies minimum entropy in bits required for key
-	MinEntropy int
-	// KeyLength specifies number of characters in generated key, if this
-	// value is > 0, minimum entropy value is ignored
-	KeyLength int
+	MinEntropy uint16
+	// KeyLength specifies number of characters in generated key
+	// if this value is specified, minimum entropy value is ignored
+	KeyLength uint16
 }
 
 // New returns a key generator with given config, or default values if nil
 //
-// If no config is specified, error is always nil
+// Defaults to CharsetBase62 and 128 bit entropy
 func New(c *Config) (*keygen, error) {
+	k := &keygen{charset: CharsetBase62, minEntropy: 128}
+
 	// default values
-	k := &keygen{}
 	if c == nil {
-		k.charset = CharsetBase62
-		k.minEntropy = 128
 		return k, nil
 	}
 
-	// custom values
-	// -- check charset is not empty or has single character
-	if c.Charset == "" {
-		return nil, errors.New("empty charset")
-	} else if utf8.RuneCountInString(c.Charset) == 1 {
-		return nil, errors.New("charset must contain more than 1 character")
-	}
-	dups := map[rune]bool{}
-	// -- check for non printable unicode and duplicates
-	for _, r := range c.Charset {
-		if !unicode.IsPrint(r) || r == ' ' {
-			return nil, fmt.Errorf("non printable unicode: '%U'", r)
+	// set config values
+	if c.Charset != "" {
+		// check charset is not empty or has single character
+		if utf8.RuneCountInString(c.Charset) < 2 {
+			return nil, errors.New("charset must contain more than 1 character")
 		}
 
-		if dups[r] {
-			return nil, fmt.Errorf("duplicate character: %q", r)
-		} else {
-			dups[r] = true
+		// check for non printable unicode and duplicates
+		for _, r := range c.Charset {
+			if !unicode.IsPrint(r) || r == ' ' {
+				return nil, fmt.Errorf("non printable unicode: '%U'", r)
+			}
 		}
+		k.charset = c.Charset
 	}
-	k.charset = c.Charset
 
-	// user specified either key length or minimum entropy
+	// ignore entropy if keylength specified
 	if c.KeyLength != 0 {
-		// -- check key length
-		if c.KeyLength < 0 {
-			return nil, errors.New("key length must be >= 0")
-		}
-		k.keyLength = c.KeyLength
+		k.keyLength = int(c.KeyLength)
 	} else {
-		// -- check minimum entropy
-		if c.MinEntropy < 1 {
-			return nil, errors.New("minimum entropy must be > 0")
-		}
-		k.minEntropy = c.MinEntropy
+		k.minEntropy = int(c.MinEntropy)
 	}
 
 	return k, nil
+}
+
+func (k *keygen) Key() ([]byte, error) {
+	// we calculate key length by dividing the minimum entropy needed
+	// by the entropy of the charset specified, then rounding up
+	charset := []rune(k.charset)
+	charsetEntropy := int(math.Ceil(math.Log2(float64(len(charset)))))
+	keyRuneCount := k.keyLength
+	if keyRuneCount == 0 {
+		// keylength not specified, we calculate from minimum entropy
+		keyRuneCount = int(math.Ceil(float64(k.minEntropy) / float64(charsetEntropy)))
+	}
+
+	// determine max rune width
+	maxRuneWidth := 1
+	if k.charset != CharsetBase58 && k.charset != CharsetBase62 && k.charset != CharsetRFC6265 {
+		for _, r := range charset {
+			if maxRuneWidth == 4 {
+				// utf-8 has max 4 bytes
+				break
+			}
+			if l := utf8.RuneLen(r); l > maxRuneWidth {
+				maxRuneWidth = l
+			}
+		}
+	}
+
+	// generate key
+	var key bytes.Buffer
+	key.Grow(keyRuneCount * maxRuneWidth)
+	r := randgen{}
+	for i := 0; i < keyRuneCount; {
+		idx, err := r.randomBits(charsetEntropy)
+		if err != nil {
+			return nil, err
+		}
+		if idx < int64(len(charset)) {
+			key.WriteRune(charset[idx])
+			i++
+		}
+	}
+
+	return key.Bytes(), nil
 }

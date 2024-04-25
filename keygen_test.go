@@ -31,17 +31,12 @@ func TestNewBadConfig(t *testing.T) {
 	confs := []struct {
 		Error      string
 		Charset    string
-		MinEntropy int
-		KeyLength  int
+		MinEntropy uint16
+		KeyLength  uint16
 	}{
-		{"empty charset", "", 128, 0},
 		{"charset must contain more than 1 character", "a", 128, 0},
 		{"non printable unicode: 'U+0020'", "a b", 128, 0},
 		{"non printable unicode: 'U+2002'", "a\u2002b", 128, 0},
-		{"duplicate character: 'b'", "abbc", 128, 0},
-		{"minimum entropy must be > 0", keygen.CharsetBase62, 0, 0},
-		{"minimum entropy must be > 0", keygen.CharsetBase62, -1, 0},
-		{"key length must be >= 0", keygen.CharsetBase62, 128, -1},
 	}
 
 	for _, conf := range confs {
@@ -60,8 +55,8 @@ func TestNewBadConfig(t *testing.T) {
 func TestNewGoodConfig(t *testing.T) {
 	tests := []struct {
 		Charset    string
-		MinEntropy int
-		KeyLength  int
+		MinEntropy uint16
+		KeyLength  uint16
 		TestFn     func([]byte)
 	}{
 		// test charset unicode support
