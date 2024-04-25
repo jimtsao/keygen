@@ -23,7 +23,7 @@ type keygen struct {
 }
 
 type Config struct {
-	// Charset specifies allowed characters. Must be subset of [0-9][a-z][A-Z]
+	// Charset specifies allowed printable characters. Unicode categories L, M, N, P, S
 	Charset string
 	// MinEntropy specifies minimum entropy in bits required for key
 	MinEntropy int
