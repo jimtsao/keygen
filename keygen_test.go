@@ -14,7 +14,7 @@ func TestNewDefault(t *testing.T) {
 		t.FailNow()
 	}
 
-	key, err := k.Key()
+	key := k.Key()
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -23,6 +23,12 @@ func TestNewDefault(t *testing.T) {
 	// default key length should be 22 characters
 	if len(key) != 22 {
 		t.Logf("expected key length %d, got %d", 22, len(key))
+		t.Fail()
+	}
+
+	// key shouldn't be all 0s
+	if string(key) == "0000000000000000000000" {
+		t.Logf("key empty: %s", key)
 		t.Fail()
 	}
 }
@@ -99,11 +105,7 @@ func TestNewGoodConfig(t *testing.T) {
 			t.Error(err)
 			continue
 		}
-		key, err := k.Key()
-		if err != nil {
-			t.Error(err)
-			continue
-		}
+		key := k.Key()
 		test.TestFn(key)
 	}
 }

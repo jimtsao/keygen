@@ -3,7 +3,7 @@ package keygen
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"errors"
+	"io"
 )
 
 // randgen encapsulates underlying optimisation to giving out random bits
@@ -12,34 +12,39 @@ type randgen struct {
 	cursor int
 }
 
-// randomBits gives up to maximum 64 cryptographically random bits
-func (r *randgen) randomBits(n int) (int64, error) {
-	// range check
-	if n > 64 {
-		return 0, errors.New("n must be between 0 and 64 inclusive")
+// randomBits gives up to maximum 18 cryptographically random bits
+func (r *randgen) randomBits(n int) int {
+	// as randomBits is used to generate an index to choose
+	// a character from a given character set, given the total
+	// number of printable unicode characters we allow is 143,571
+	// the maximum we can expect is 18 bits, i.e. 2^18, which covers
+	// 262,144 characters
+	if n <= 0 || n > 18 {
+		panic("invalid random bits requested")
 	}
 
 	// refresh cache if needed
 	if r.cache == 0 || r.cursor+n > 63 {
-		if err := r.refreshCache(); err != nil {
-			return 0, err
-		}
+		r.refreshCache()
 	}
 
 	// fetch bits from cache
 	bits := (r.cache >> r.cursor) & ((1 << n) - 1)
 	r.cursor += n
 
-	return int64(bits), nil
+	// can safely convert uint64 to int, as int returned is never
+	// expected to exceed number of printable unicode characters
+	// i.e. 143,571, which is less than 2^31
+	return int(bits)
 }
 
 // refreshCache generates new random bits and stores in cache
-func (r *randgen) refreshCache() error {
-	b := make([]byte, 8)
-	if _, err := rand.Read(b); err != nil {
-		return err
+func (r *randgen) refreshCache() {
+	var buf [8]byte
+	_, err := io.ReadFull(rand.Reader, buf[:])
+	if err != nil {
+		panic(err)
 	}
-	r.cache = binary.LittleEndian.Uint64(b)
+	r.cache = binary.LittleEndian.Uint64(buf[:])
 	r.cursor = 0
-	return nil
 }
